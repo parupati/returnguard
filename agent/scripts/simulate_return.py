@@ -1,17 +1,23 @@
 """Demo the learning loop: the customer returns an order anyway, then buys again.
 
 SIMULATED customer behaviour (disclosed in the submission): creates a real Shopify return on the given demo
-order and, with --next-order, a new test order for the same customer. On the next `returnguard run` the agent
-records the outcome in Databricks and reads it back when deciding on the new order.
+order and, with --next-order, a new test order for the same customer, placed a day ago, followed by a refund-policy
+visit in Bloomreach (tagged simulated). On the next `returnguard run` the agent records the outcome in Databricks
+and reads it back when deciding on the new order, so it has to pick something other than what already failed.
 
     uv run --env-file .env python scripts/simulate_return.py 1001 --next-order
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from returnguard.config import load_shopify_settings
+from returnguard.bloomreach import BloomreachClient
+from returnguard.config import load_bloomreach_settings, load_shopify_settings
 from returnguard.shopify import ShopifyClient
+
+SITE = "https://frontier-nvj3lkxp.myshopify.com"
+NEXT_ORDER_AGE = timedelta(days=1)
+SIGNAL_AGE = timedelta(hours=6)
 
 ORDER_QUERY = """
 query Order($q: String!) {
@@ -50,6 +56,7 @@ def main() -> None:
     parser.add_argument("--next-order", action="store_true", help="Also place a new order for the same customer")
     args = parser.parse_args()
 
+    now = datetime.now(timezone.utc)
     shopify = ShopifyClient.from_settings(load_shopify_settings())
     nodes = shopify.graphql(ORDER_QUERY, {"q": f"name:{args.order_number}"})["orders"]["nodes"]
     if not nodes:
@@ -65,7 +72,7 @@ def main() -> None:
             {
                 "input": {
                     "orderId": order["id"],
-                    "requestedAt": datetime.now(timezone.utc).isoformat(),
+                    "requestedAt": now.isoformat(),
                     "returnLineItems": [
                         {
                             "fulfillmentLineItemId": line["id"],
@@ -102,6 +109,7 @@ def main() -> None:
                 }
                 for line in lines
             ],
+            "processedAt": (now - NEXT_ORDER_AGE).isoformat(),
             "financialStatus": "PAID",
             "fulfillmentStatus": "FULFILLED",
             "test": True,
@@ -112,7 +120,18 @@ def main() -> None:
         )["orderCreate"]
         if created["userErrors"]:
             raise SystemExit(f"orderCreate failed: {created['userErrors']}")
-        print(f"{customer['firstName']} bought again: {created['order']['name']}")
+        print(f"{customer['firstName']} bought again: {created['order']['name']} (placed {NEXT_ORDER_AGE.days}d ago)")
+
+        bloomreach = BloomreachClient.from_settings(load_bloomreach_settings())
+        visit_at = now - SIGNAL_AGE
+        bloomreach.track_event(order["email"], "session_start", {"simulated": True}, visit_at)
+        bloomreach.track_event(
+            order["email"],
+            "page_visit",
+            {"location": f"{SITE}/policies/refund-policy", "simulated": True},
+            visit_at + timedelta(minutes=2),
+        )
+        print(f"...and read the refund policy {SIGNAL_AGE.seconds // 3600}h ago (simulated Bloomreach event)")
 
 
 if __name__ == "__main__":

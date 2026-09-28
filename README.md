@@ -12,6 +12,10 @@ capped incentive), delivers it through Bloomreach, and learns from whether the i
 
 ## Architecture
 
+![ReturnGuard architecture](docs/architecture/returnguard_architecture.png)
+
+The same flow as a text diagram (source: `docs/architecture/make_diagram.py`):
+
 ```mermaid
 flowchart LR
     subgraph Signal
@@ -82,6 +86,8 @@ agent/                      Python agent
     simulate_return.py      Demo the learning loop: return an order, then buy again
     reset_demo.py           Clear demo decisions to re-run the demo from scratch
     deploy_databricks.py    Deploy as a scheduled Databricks Job (secret scope + upload + job)
+    set_demo_inbox.py       Point demo customers' Bloomreach email at one real inbox
+    sync_consent.py         Copy marketing consent from Databricks to Bloomreach (opted-in customers only)
     inspect_module.py       Read-only look inside each module against the live systems
   tests/                    91 tests, 98% coverage
 databricks/returnguard_setup.sql   Views + intervention_log table (team schema)
