@@ -225,11 +225,11 @@ processes each one. That's harmless (no email is delivered), but reset only when
 
 ```bash
 uv run --env-file .env python scripts/simulate_return.py 1001 --next-order
-uv run --env-file .env returnguard run
 ```
 
-The first command creates a **real Shopify return** on #1001 and a new order (e.g. #1004) for the same customer.
-**It can't be undone**, so do it while recording.
+This creates a **real Shopify return** on #1001 and a new order (e.g. #1004) for the same customer. **It can't be
+undone**, so do it while recording. Then let the **hosted job** pick it up: in Databricks, open **ReturnGuard
+agent** and click **Run now**. Running `returnguard run` locally does exactly the same thing.
 
 **Expect, on the second run:**
 - `resolved_outcomes: ["#1001: returned"]`
@@ -238,7 +238,24 @@ The first command creates a **real Shopify return** on #1001 and a new order (e.
 
 In Databricks, #1001's row now reads `outcome = returned`.
 
-## Step 10: The Bloomreach scenario
+## Step 10: Hosting, or how it runs with no human
+
+The agent is deployed as the Databricks Job **ReturnGuard agent**: serverless, **every hour**, deployed by
+`scripts/deploy_databricks.py`.
+
+| Piece | Where |
+|---|---|
+| Code | `/Workspace/Users/<you>/returnguard/` (the `returnguard` package plus `run_returnguard.py`) |
+| Settings and keys | The Databricks **secret scope** `returnguard` (16 entries). There's no `.env` on the server. |
+| Start-up | `returnguard/jobs.py` loads the scope into the environment, then runs one cycle (`returnguard run`) |
+| Identity | Inside a job, `lakehouse.workspace_client()` uses the job's own Databricks identity, with no browser login |
+| Output | Each run's output is the same JSON report you see locally (Jobs, then Runs, then Output) |
+
+**See it yourself:** in Databricks, open **Jobs & Pipelines**, then **ReturnGuard agent**. The Runs tab shows
+each run, and **Run now** triggers one immediately. After you change code locally, redeploy with
+`uv run --env-file .env python scripts/deploy_databricks.py`.
+
+## Step 11: The Bloomreach scenario
 
 Trigger **On event `returnguard_intervention`**, then an **Email** action using
 `bloomreach/returnguard_email.html`. The email reads `{{ event['message_body'] }}` and the other event fields
@@ -256,6 +273,7 @@ recipients, nothing is delivered. Show the scenario and the preview instead.
 | Is customer data sent to the LLM? | No personal data. Customer ID only, no name or email. |
 | How does it learn? | Every decision and outcome is stored in Databricks and read back as `prior_interventions`, so failed interventions aren't repeated (Step 9). Next: train a propensity model on that table. |
 | Why log before acting? | So a crash between the two steps can never message a customer twice. |
-| Is it agentic, not a script? | It runs itself (`returnguard watch`), decides per customer (including doing nothing), acts in external systems, and learns from outcomes. |
-| What's simulated? | Test orders, storefront events tagged `simulated: true`, the demo return, and undelivered email. The agent runs locally, not hosted. Everything else is live. |
+| Is it agentic, not a script? | It runs itself (an hourly Databricks Job), decides per customer (including doing nothing), acts in external systems, and learns from outcomes. |
+| Where does it run? | As a serverless Databricks Job, next to the Lakehouse. Keys are in a Databricks secret scope, and it uses the job's identity, so no laptop and no human are involved. |
+| What's simulated? | Test orders, storefront events tagged `simulated: true`, the demo return, and undelivered email. Everything else, including the hosting, is live. |
 | Why not Loomi or the Marketing Agent? | We used the Platform APIs and an event-triggered scenario. Having the Marketing Agent build and A/B test the journey is our first roadmap item. |

@@ -44,9 +44,10 @@ About 4.5 minutes, following the kit's recommended flow. See the script at the e
 
 See the diagram and run loop in [README.md](../README.md#architecture).
 
-- **Interface:** autonomous, with no chat UI. It is triggered by a schedule (`returnguard watch`), and its output
-  is customer messages sent by the Bloomreach scenario.
-- **Agent runtime:** a Python process (`agent/src/returnguard`).
+- **Interface:** autonomous, with no chat UI. It is triggered by the Databricks Job schedule (hourly), and its
+  output is customer messages sent by the Bloomreach scenario.
+- **Agent runtime:** a **Databricks Job on serverless compute**. Settings come from a Databricks secret scope,
+  and the job uses its own identity for the Lakehouse. It is deployed by `scripts/deploy_databricks.py`.
 - **Data flow:** Shopify orders → context assembly (Databricks + Bloomreach) → Gemini → policy → Databricks log →
   Bloomreach (profile, event, scenario) and Shopify (discount) → outcome back to Databricks and Bloomreach.
 - **Output:** a personalized intervention per at-risk order, an updated risk profile, and a growing outcome
@@ -71,14 +72,15 @@ Agent is on the roadmap.
 | System | What it does at runtime | What breaks if you remove it |
 |---|---|---|
 | **Bloomreach** (required) | Reads each customer's post-purchase engagement events. Writes risk-profile properties. Records `returnguard_intervention`, which triggers the live *ReturnGuard delivery* scenario that builds the email. Records `returnguard_outcome`. | The agent loses its strongest signal (the refund-policy visit and the fall in email engagement) and has no way to reach the customer. Decisions would never become messages. |
-| **Databricks** | The Lakehouse supplies per-product return rates computed from real refund history, plus customer lifetime value, churn, own return rate, support cases and marketing consent. `intervention_log` stores every decision and its outcome, which are read back as prior interventions. | No risk baseline, no consent check, and no learning. The agent would repeat interventions that already failed for a customer. |
+| **Databricks** | Hosts the agent as an hourly serverless Job, with settings in a secret scope. The Lakehouse supplies per-product return rates computed from real refund history, plus customer lifetime value, churn, own return rate, support cases and marketing consent. `intervention_log` stores every decision and its outcome, which are read back as prior interventions. | Nothing runs: there is no host and no schedule. There is also no risk baseline, no consent check and no learning, so the agent would repeat interventions that already failed for a customer. |
 | **Gemini** | Weighs the combined cross-system signal, picks the risk level, intervention and channel, and writes the per-customer message as structured JSON. | The decision collapses to hardcoded if-statements, and every customer gets the same message. |
 | **Shopify** | Source of the orders that trigger the agent. Its return status determines each outcome (returned or kept). Issues single-use, customer-scoped discount codes when an incentive is earned. | No trigger, no outcome to learn from, and no incentive mechanism. |
 
 **Depth beyond basic API calls**
 - **Databricks:** we built our own feature views (`product_return_stats`, `customer_return_profile`) on the
-  hackathon data and a decision/outcome table in the team schema. Queries use named parameters, and access uses
-  OAuth.
+  hackathon data and a decision/outcome table in the team schema. Queries use named parameters. The agent is
+  **hosted as a scheduled serverless Job**, which reads its settings from a **secret scope** and authenticates
+  with the job's own identity.
 - **Gemini:** a JSON-schema-constrained response, a reasoning policy in the system prompt (weigh signals
   together, help before paying, never repeat a failed intervention, pick the channel from engagement), and
   customer data sent without any personal identifiers.
@@ -123,14 +125,14 @@ Agent is on the roadmap.
   - the return shown in the demo.
 - **Not delivered:** emails, because the sandbox has no email integration and the demo addresses are
   `@example.test`. The scenario runs and renders the message.
-- **Runs locally:** the agent runs as a local scheduled process, not hosted.
-- **Executed live:** everything else — every Gemini call, every Databricks read and write, every Bloomreach
-  read and write, and every Shopify read, return and discount call.
+- **Executed live:** everything else, including the agent itself running as an hourly Databricks Job, every
+  Gemini call, every Databricks read and write, every Bloomreach read and write, and every Shopify read, return
+  and discount call.
 
 ## Future roadmap
 
-1. **Hosting:** deploy the agent as a scheduled Databricks Job or on AgentBricks (closer to the Lakehouse),
-   and replace polling with Shopify `orders/fulfilled` and `returns/request` webhooks.
+1. **Real-time triggers:** add Shopify `orders/fulfilled` and `returns/request` webhooks alongside the hourly
+   Databricks Job, and move the agent onto AgentBricks for monitoring and tracing.
 2. **Marketing Agent (Pattern 1):** hand the Marketing Agent a brief to build and A/B test the delivery journey
    against a control group, so the lift of each intervention type is measured.
 3. **Learning:** train a return-propensity model on `intervention_log` outcomes (in Databricks) and feed its
@@ -152,6 +154,6 @@ Before recording, reset the demo so the run is fresh:
 | 0:00–0:30 | Executive context | Title slide or README | "Retailers learn about a return when the parcel is already coming back. The signals were there days earlier, split across four systems. ReturnGuard connects them and steps in first." |
 | 0:30–1:15 | Solution overview | README "Architecture" diagram | Walk through Signal → Reason → Act → Learn: which system does what. |
 | 1:15–2:15 | Architecture walkthrough | The same diagram, then `agent.py` briefly | Point out: context has no PII; the policy runs in code after Gemini; the decision is logged before acting. |
-| 2:15–3:45 | Core demo | Terminal and three browser tabs | 1) Shopify admin: orders #1001–#1003. 2) Run `returnguard run` and read the three results aloud: #1001 high risk → usage tips; #1002 low → no contact; #1003 high risk but blocked by the consent policy. 3) Databricks: `intervention_log` rows with rationale. 4) Bloomreach: CUST-0046 profile shows the risk fields and the `returnguard_intervention` event; the scenario and the email preview show Gemini's message. 5) Run `simulate_return.py 1001 --next-order`, then `returnguard run` again: "#1001: returned" is recorded, and the new order gets a **different** intervention because usage tips already failed for this customer. |
+| 2:15–3:45 | Core demo | Terminal and three browser tabs | 1) Shopify admin: orders #1001–#1003. 2) Run `returnguard run` and read the three results aloud: #1001 high risk → usage tips; #1002 low → no contact; #1003 high risk but blocked by the consent policy. 3) Databricks: `intervention_log` rows with rationale. 4) Bloomreach: CUST-0046 profile shows the risk fields and the `returnguard_intervention` event; the scenario and the email preview show Gemini's message. 5) Run `simulate_return.py 1001 --next-order`. Then, in Databricks, open the **ReturnGuard agent** job and click **Run now** (no terminal: this is how it runs every hour). The run output shows "#1001: returned" recorded, and the new order gets a **different** intervention because usage tips already failed for this customer. |
 | 3:45–4:15 | Platform depth | System touch table | "Remove any one system and the loop breaks." Point to the depth bullets. |
 | 4:15–4:30 | Agent reasoning, and what's simulated | The rationale in the log; the simulated table | Show one rationale. State plainly: test orders, simulated storefront events, email not delivered. |

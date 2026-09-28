@@ -20,7 +20,7 @@ flowchart LR
         BR1["Bloomreach<br/>post-purchase engagement<br/>(sessions, order and<br/>refund-page visits, email)"]
     end
 
-    AG["ReturnGuard agent<br/>(Python, runs on a schedule:<br/>returnguard watch)"]
+    AG["ReturnGuard agent<br/>(Databricks Job, serverless,<br/>runs hourly on its own)"]
     GE["Gemini 3.8 Flash<br/>risk, intervention,<br/>channel, message"]
     PO["Policy guardrails (code)<br/>consent, return window,<br/>incentive caps, SKU check"]
 
@@ -81,6 +81,7 @@ agent/                      Python agent
     seed_demo.py            Demo data (simulated, see below)
     simulate_return.py      Demo the learning loop: return an order, then buy again
     reset_demo.py           Clear demo decisions to re-run the demo from scratch
+    deploy_databricks.py    Deploy as a scheduled Databricks Job (secret scope + upload + job)
     inspect_module.py       Read-only look inside each module against the live systems
   tests/                    91 tests, 98% coverage
 databricks/returnguard_setup.sql   Views + intervention_log table (team schema)
@@ -110,7 +111,18 @@ Prerequisites: Python 3.11+ with [uv](https://docs.astral.sh/uv/), Node 22.12+, 
    uv run pytest
    ```
 
-## Running
+## Deploying (runs by itself)
+
+```bash
+cd agent
+uv run --env-file .env python scripts/deploy_databricks.py --run-now
+```
+
+This stores every setting in the Databricks secret scope `returnguard` and uploads the package to your workspace.
+It then creates the job **ReturnGuard agent** (serverless, hourly) and runs it once. Inside the job, the agent uses the
+job's own Databricks identity, so no browser login is involved. The entry point is `returnguard/jobs.py`.
+
+## Running locally
 
 ```bash
 cd agent
@@ -136,4 +148,5 @@ uv run --env-file .env returnguard run                          # #1001 recorded
 | Gemini decisions and messages, live on every run | Bloomreach storefront events (sessions, page visits, email opens) for those customers, tagged `simulated: true`, because the dev store has no Bloomreach tracking |
 | Shopify Admin API: order reads, return status, discount codes | The return in the demo is created by `simulate_return.py` |
 | Bloomreach: profile updates, intervention and outcome events, a live scenario | Email is **not delivered**: no email integration in the sandbox, and demo addresses are `@example.test` |
-| Policy guardrails and the learning loop | The agent runs as a local scheduled process (`returnguard watch`), not hosted on AgentBricks or Cloud Run |
+| Policy guardrails and the learning loop | |
+| Hosting: a scheduled **Databricks Job** (serverless, hourly). Settings are read from a Databricks secret scope, and the job authenticates with its own identity. | |

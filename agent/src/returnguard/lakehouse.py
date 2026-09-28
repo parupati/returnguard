@@ -1,6 +1,7 @@
 """Databricks Lakehouse access: return-risk features in, decisions and outcomes out (the learning loop)."""
 
 import json
+import os
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -21,6 +22,16 @@ Outcome = Literal["kept", "returned"]
 
 class LakehouseError(RuntimeError):
     pass
+
+
+def workspace_client(settings: DatabricksSettings, env: Mapping[str, str] | None = None) -> WorkspaceClient:
+    """Unattended identity when one exists (a Databricks job, or a service principal); browser login otherwise."""
+    source = os.environ if env is None else env
+    if source.get("DATABRICKS_RUNTIME_VERSION"):
+        return WorkspaceClient()
+    if source.get("DATABRICKS_CLIENT_ID") and source.get("DATABRICKS_CLIENT_SECRET"):
+        return WorkspaceClient(host=settings.host)
+    return WorkspaceClient(host=settings.host, auth_type="external-browser")
 
 
 class SqlExecutor(Protocol):
@@ -87,8 +98,7 @@ class LakehouseStore:
 
     @classmethod
     def from_settings(cls, settings: DatabricksSettings) -> "LakehouseStore":
-        client = WorkspaceClient(host=settings.host, auth_type="external-browser")
-        return cls(WarehouseExecutor(client, settings.warehouse_id), settings.catalog, settings.schema)
+        return cls(WarehouseExecutor(workspace_client(settings), settings.warehouse_id), settings.catalog, settings.schema)
 
     def customer_by_email(self, email: str) -> CustomerRecord | None:
         rows = self._executor.execute(
