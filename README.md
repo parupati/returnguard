@@ -81,11 +81,13 @@ agent/                      Python agent
     seed_demo.py            Demo data (simulated, see below)
     simulate_return.py      Demo the learning loop: return an order, then buy again
     reset_demo.py           Clear demo decisions to re-run the demo from scratch
+    inspect_module.py       Read-only look inside each module against the live systems
   tests/                    91 tests, 98% coverage
 databricks/returnguard_setup.sql   Views + intervention_log table (team schema)
 bloomreach/returnguard_email.html  Email template for the delivery scenario
 frontier/                   Shopify app (permissions, installed on the dev store)
 docs/SUBMISSION.md          Hackathon submission brief
+docs/WALKTHROUGH.md         Hands-on tour: test and understand every module
 ```
 
 ## Setup
