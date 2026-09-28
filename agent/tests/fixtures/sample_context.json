@@ -1,0 +1,57 @@
+{
+  "customer": {
+    "customer_id": "C-10482",
+    "loyalty_tier": "gold",
+    "preferred_channel": "app",
+    "marketing_opt_in": true,
+    "lifetime_value": 1840.0,
+    "lifetime_orders": 14,
+    "historical_return_rate": 0.29,
+    "churn_risk": 0.41,
+    "support_cases_30d": 1
+  },
+  "order": {
+    "order_id": "1042",
+    "placed_at": "2026-09-20T14:05:00Z",
+    "currency": "GBP",
+    "total_value": 213.0,
+    "delivered": true,
+    "days_since_order": 4,
+    "days_left_in_return_window": 26,
+    "line_items": [
+      {
+        "sku": "BLZ-MER-NVY-40",
+        "product_title": "Merino Wool Blazer, Navy, 40R",
+        "category": "outerwear",
+        "unit_price": 189.0,
+        "quantity": 1,
+        "sku_return_rate": 0.34,
+        "top_return_reason": "size_runs_small"
+      },
+      {
+        "sku": "ACC-SLK-PSQ-BRG",
+        "product_title": "Silk Pocket Square, Burgundy",
+        "category": "accessories",
+        "unit_price": 24.0,
+        "quantity": 1,
+        "sku_return_rate": 0.03,
+        "top_return_reason": null
+      }
+    ]
+  },
+  "engagement": {
+    "opened_confirmation_email": false,
+    "clicked_tracking_link": true,
+    "viewed_order_status_page": true,
+    "visited_return_policy_page": true,
+    "sessions_since_order": 3,
+    "email_engagement_trend": "declining"
+  },
+  "prior_interventions": [
+    {
+      "order_id": "0977",
+      "intervention_type": "usage_tips",
+      "item_returned": true
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+<!--
+  ReturnGuard delivery email for the Bloomreach scenario "ReturnGuard delivery".
+  Trigger: On event `returnguard_intervention`. Every {{ event[...] }} value is written by the agent;
+  the subject and body are Gemini's per-customer message after ReturnGuard's policy checks.
+  Subject line to use in the email editor:  {{ event['message_subject'] }}
+-->
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f6f4;font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;padding:32px;">
+            <tr>
+              <td style="font-size:14px;color:#6b6b6b;padding-bottom:8px;">
+                Order {{ event['order_name'] | e }}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:16px;line-height:1.6;padding-bottom:24px;">
+                {% if customer.first_name %}Hi {{ customer.first_name | e }},<br><br>{% endif %}
+                {{ event['message_body'] | e }}
+              </td>
+            </tr>
+            {% if event['discount_code'] %}
+            <tr>
+              <td style="font-size:15px;padding-bottom:24px;">
+                As a thank-you, here is {{ event['discount_percent'] | e }}% off your next order:
+                <strong style="font-size:18px;letter-spacing:1px;">{{ event['discount_code'] | e }}</strong>
+              </td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td style="padding-bottom:8px;">
+                <a href="https://frontier-nvj3lkxp.myshopify.com/account"
+                   style="display:inline-block;background:#1f1f1f;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:6px;font-size:15px;">
+                  {{ event['cta_text'] | e }}
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:12px;color:#8a8a8a;padding-top:24px;border-top:1px solid #eeeeee;">
+                You're receiving this because of your recent order with Frontier.
+                <a href="{{ consent.page }}" style="color:#8a8a8a;">Manage preferences or unsubscribe</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
