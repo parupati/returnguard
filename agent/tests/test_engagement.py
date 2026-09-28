@@ -39,10 +39,18 @@ def test_post_order_page_visits_are_classified():
     assert summary.sessions_since_order == 2
 
 
+def test_exchange_browsing_is_its_own_signal():
+    events = [_event("page_visit", 1, location="https://shop.test/pages/exchanges")]
+    summary = summarize_engagement(events, ORDER_AT, NOW)
+    assert summary.visited_exchange_page is True
+    assert summary.visited_return_policy_page is False
+
+
 def test_only_events_after_the_order_count():
     events = [_event("page_visit", 10, location="https://shop.test/pages/returns"), _email(10, "opened")]
     summary = summarize_engagement(events, ORDER_AT, NOW)
     assert summary.visited_return_policy_page is False
+    assert summary.visited_exchange_page is False
     assert summary.opened_confirmation_email is False
 
 

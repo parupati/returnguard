@@ -61,6 +61,7 @@ class PostPurchaseEngagement(_Frozen):
     clicked_tracking_link: bool
     viewed_order_status_page: bool
     visited_return_policy_page: bool
+    visited_exchange_page: bool = False
     sessions_since_order: int = Field(ge=0)
     email_engagement_trend: EngagementTrend
 

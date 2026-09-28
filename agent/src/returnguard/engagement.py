@@ -9,7 +9,8 @@ from returnguard.enums import EngagementTrend
 
 ENGAGEMENT_EVENT_TYPES = ("campaign", "page_visit", "session_start")
 
-RETURN_PAGE_MARKERS = ("return", "refund", "exchange")
+RETURN_PAGE_MARKERS = ("return", "refund")
+EXCHANGE_PAGE_MARKERS = ("exchange",)
 ORDER_PAGE_MARKERS = ("/account/orders", "order-status", "/orders/")
 TRACKING_MARKERS = ("track",)
 
@@ -33,6 +34,7 @@ def summarize_engagement(events: Sequence[Event], order_placed_at: datetime, now
         or any(_has(url, TRACKING_MARKERS) for url in page_urls),
         viewed_order_status_page=any(_has(url, ORDER_PAGE_MARKERS) for url in page_urls),
         visited_return_policy_page=any(_has(url, RETURN_PAGE_MARKERS) for url in page_urls),
+        visited_exchange_page=any(_has(url, EXCHANGE_PAGE_MARKERS) for url in page_urls),
         sessions_since_order=sum(1 for e in since_order if e.get("type") == "session_start"),
         email_engagement_trend=_email_trend(events, now),
     )

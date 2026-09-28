@@ -17,6 +17,13 @@ def test_prompt_includes_order_and_customer_cap(context):
     assert "BLZ-MER-NVY-40" in prompt
 
 
+def test_system_instruction_includes_category_playbook_and_exchange_rule():
+    assert "   - Beauty: results take time" in SYSTEM_INSTRUCTION
+    assert "   - Electronics: setup or compatibility" in SYSTEM_INSTRUCTION
+    assert "exchange page" in SYSTEM_INSTRUCTION
+    assert "{category_drivers}" not in SYSTEM_INSTRUCTION
+
+
 def test_decide_sends_schema_and_applies_policy(context):
     model = FakeModel(make_decision(target_sku="NOT-IN-ORDER").model_dump_json())
     result = decide(context, model)

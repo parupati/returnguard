@@ -1,8 +1,8 @@
-# ReturnGuard: hands-on walkthrough
+﻿# ReturnGuard: hands-on walkthrough
 
 A guided tour of every module, tested one at a time against the live systems. It takes about 45 minutes.
-Run all commands from the `agent/` folder. Steps 1–7 are **read-only**. Steps 8–9 **write** to the real systems;
-they are marked ✍.
+Run all commands from the `agent/` folder. Steps 1â€“7 are **read-only**. Steps 8â€“9 **write** to the real systems;
+they are marked âœ.
 
 The first Databricks command opens a browser login, so sign in once before you record the demo.
 
@@ -14,9 +14,9 @@ ReturnGuard runs a loop. Each system is used for the one thing it knows best:
 
 ```
  SIGNAL                       REASON                 ACT                            LEARN
- Shopify     → the order      Gemini   → decision     Bloomreach → message (scenario)  Databricks ← outcome
- Databricks  → history, value Policy   → guardrails   Shopify    → discount code       (kept/returned)
- Bloomreach  → behaviour                              Databricks ← decision log        ↺ read next time
+ Shopify     â†’ the order      Gemini   â†’ decision     Bloomreach â†’ message (scenario)  Databricks â† outcome
+ Databricks  â†’ history, value Policy   â†’ guardrails   Shopify    â†’ discount code       (kept/returned)
+ Bloomreach  â†’ behaviour                              Databricks â† decision log        â†º read next time
 ```
 
 | File (`src/returnguard/`) | One-line job |
@@ -25,7 +25,7 @@ ReturnGuard runs a loop. Each system is used for the one thing it knows best:
 | `shopify.py` | Talks to Shopify: reads orders and return status, creates discount codes |
 | `lakehouse.py` | Talks to Databricks: reads customer and product features, writes decisions and outcomes |
 | `bloomreach.py` | Talks to Bloomreach: reads events, writes profile fields and events |
-| `engagement.py` | Turns raw Bloomreach events into 6 yes/no/trend signals |
+| `engagement.py` | Turns raw Bloomreach events into 7 yes/no/trend signals |
 | `context.py` | The exact data shape Gemini receives, with each field labelled by its source system |
 | `reasoning.py` | Gemini's instructions and the `decide()` function |
 | `decision.py` | The exact shape Gemini must answer in (a JSON schema) |
@@ -67,9 +67,9 @@ uv run --env-file .env python scripts/inspect_module.py shopify
 
 | Order | Customer | Product |
 |---|---|---|
-| #1001 | `lady.riggs.0046@…` | PROD-004 |
-| #1002 | `anthony.reilly.0001@…` | PROD-039 and PROD-001 |
-| #1003 | `leon.rowe.0029@…` | PROD-004 |
+| #1001 | `lady.riggs.0046@â€¦` | PROD-004 |
+| #1002 | `anthony.reilly.0001@â€¦` | PROD-039 and PROD-001 |
+| #1003 | `leon.rowe.0029@â€¦` | PROD-004 |
 
 All three are delivered, with `return=NO_RETURN`.
 
@@ -119,16 +119,17 @@ uv run --env-file .env python scripts/inspect_module.py bloomreach --customer CU
 **Expect:**
 - The raw events: old newsletter opens; after the order, 2 sessions, a visit to `/account/orders` and a visit to
   **`/policies/refund-policy`**; then the agent's own `returnguard_intervention` events.
-- Below them, the 6 signals `engagement.py` derived from those events.
+- Below them, the 7 signals `engagement.py` derived from those events.
 
 | Signal | Rule |
 |---|---|
-| `visited_return_policy_page` | A `page_visit` after the order whose URL contains `return`, `refund` or `exchange` |
+| `visited_return_policy_page` | A `page_visit` after the order whose URL contains `return` or `refund` (thinking about a refund) |
+| `visited_exchange_page` | A URL containing `exchange` (wants another size or variant, so an exchange offer fits) |
 | `viewed_order_status_page` | A URL containing `/account/orders`, `order-status` or `/orders/` |
 | `clicked_tracking_link` | An email click or page URL containing `track` |
 | `opened_confirmation_email` | Any email opened or clicked after the order |
 | `sessions_since_order` | The number of `session_start` events after the order |
-| `email_engagement_trend` | Email opens and clicks in the last 30 days vs the 30 days before: under 0.7× is `declining`, over 1.3× is `rising` |
+| `email_engagement_trend` | Email opens and clicks in the last 30 days vs the 30 days before: under 0.7Ã— is `declining`, over 1.3Ã— is `rising` |
 
 **See it yourself:** in Bloomreach, open **Customers** and search `lady.riggs.0046@example.test`. The profile
 shows `returnguard_risk_level` and `returnguard_risk_score`, and the event stream shows the same events.
@@ -203,7 +204,7 @@ the policy adjustments. **Nothing is written.**
    discount (only if an incentive was earned) and record the `returnguard_intervention` event. Logging first
    means a failure can never cause a customer to be contacted twice.
 
-## Step 8 ✍: A real run
+## Step 8 âœ: A real run
 
 ```bash
 uv run --env-file .env python scripts/reset_demo.py
@@ -221,7 +222,7 @@ for real.
 **Note:** Bloomreach keeps every event. Each reset-and-run adds another intervention event, and the live scenario
 processes each one. That's harmless (no email is delivered), but reset only when you need to.
 
-## Step 9 ✍: The learning loop (do this once, on camera)
+## Step 9 âœ: The learning loop (do this once, on camera)
 
 ```bash
 uv run --env-file .env python scripts/simulate_return.py 1001 --next-order
